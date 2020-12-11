@@ -1,9 +1,9 @@
 package filters
 
 import (
+	"github.com/h2non/bimg"
 	"github.com/stretchr/testify/assert"
-	"github.com/zalando-incubator/skrop/filters/imagefiltertest"
-	"gopkg.in/h2non/bimg.v1"
+	"github.com/zalando-stups/skrop/filters/imagefiltertest"
 	"io/ioutil"
 	"testing"
 )
@@ -46,9 +46,10 @@ func TestFinalizeResponse_Response(t *testing.T) {
 	var bag map[string]interface{}
 	bag = make(map[string]interface{})
 	opt := &bimg.Options{Width: 100, Height: 200, Force: true}
-	bag[SkropOptions] = opt
-	bag[SkropImage] = imagefiltertest.PortraitImage()
-	bag[SkropInit] = true
+	bag[skropOptions] = opt
+	bag[skropImage] = imagefiltertest.PortraitImage()
+	bag[skropInit] = true
+	bag[hasMergedFilters] = true
 
 	ctx := createContext(t, "GET", "url", imagefiltertest.PortraitImageFile, bag)
 

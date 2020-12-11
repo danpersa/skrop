@@ -2,31 +2,31 @@ package filters
 
 import (
 	log "github.com/sirupsen/logrus"
-	"github.com/zalando-incubator/skrop/parse"
+	"github.com/zalando-stups/skrop/parse"
 	"github.com/zalando/skipper/filters"
-	"gopkg.in/h2non/bimg.v1"
+	"github.com/h2non/bimg"
 )
 
-const (
-	LongerEdgeResizeName = "longerEdgeResize"
-)
+// LongerEdgeResizeName is the name of the filter
+const LongerEdgeResizeName = "longerEdgeResize"
 
 type longerEdgeResize struct {
 	size int
 }
 
+// NewLongerEdgeResize creates a new filter of this type
 func NewLongerEdgeResize() filters.Spec {
 	return &longerEdgeResize{}
 }
 
-func (r *longerEdgeResize) Name() string {
+func (f *longerEdgeResize) Name() string {
 	return LongerEdgeResizeName
 }
 
-func (r *longerEdgeResize) CreateOptions(image *bimg.Image) (*bimg.Options, error) {
-	log.Debug("Create options for longer edge resize ", r)
+func (f *longerEdgeResize) CreateOptions(imageContext *ImageFilterContext) (*bimg.Options, error) {
+	log.Debug("Create options for longer edge resize ", f)
 
-	imageSize, err := image.Size()
+	imageSize, err := imageContext.Image.Size()
 
 	if err != nil {
 		return nil, err
@@ -34,14 +34,14 @@ func (r *longerEdgeResize) CreateOptions(image *bimg.Image) (*bimg.Options, erro
 
 	if imageSize.Width > imageSize.Height {
 		return &bimg.Options{
-			Width: r.size}, nil
-	} else {
-		return &bimg.Options{
-			Height: r.size}, nil
+			Width: f.size}, nil
 	}
+
+	return &bimg.Options{
+		Height: f.size}, nil
 }
 
-func (s *longerEdgeResize) CanBeMerged(other *bimg.Options, self *bimg.Options) bool {
+func (f *longerEdgeResize) CanBeMerged(other *bimg.Options, self *bimg.Options) bool {
 	if self.Width != 0 {
 		return other.Width == 0 || other.Width == self.Width
 	}
@@ -51,7 +51,7 @@ func (s *longerEdgeResize) CanBeMerged(other *bimg.Options, self *bimg.Options) 
 
 }
 
-func (s *longerEdgeResize) Merge(other *bimg.Options, self *bimg.Options) *bimg.Options {
+func (f *longerEdgeResize) Merge(other *bimg.Options, self *bimg.Options) *bimg.Options {
 
 	//if Width was set
 	if self.Width != 0 {
@@ -66,26 +66,26 @@ func (s *longerEdgeResize) Merge(other *bimg.Options, self *bimg.Options) *bimg.
 	return other
 }
 
-func (r *longerEdgeResize) CreateFilter(args []interface{}) (filters.Filter, error) {
+func (f *longerEdgeResize) CreateFilter(args []interface{}) (filters.Filter, error) {
 	var err error
 
 	if len(args) != 1 {
 		return nil, filters.ErrInvalidFilterParameters
 	}
 
-	f := &longerEdgeResize{}
+	c := &longerEdgeResize{}
 
-	f.size, err = parse.EskipIntArg(args[0])
+	c.size, err = parse.EskipIntArg(args[0])
 
 	if err != nil {
 		return nil, err
 	}
 
-	return f, nil
+	return c, nil
 }
 
-func (r *longerEdgeResize) Request(ctx filters.FilterContext) {}
+func (f *longerEdgeResize) Request(ctx filters.FilterContext) {}
 
-func (r *longerEdgeResize) Response(ctx filters.FilterContext) {
-	HandleImageResponse(ctx, r)
+func (f *longerEdgeResize) Response(ctx filters.FilterContext) {
+	HandleImageResponse(ctx, f)
 }

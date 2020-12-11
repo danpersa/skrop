@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/zalando-incubator/skrop/filters/imagefiltertest"
-	"gopkg.in/h2non/bimg.v1"
+	"github.com/zalando-stups/skrop/filters/imagefiltertest"
+	"github.com/h2non/bimg"
 )
 
 func TestNewLongerEdgeResize(t *testing.T) {
@@ -21,7 +21,7 @@ func TestLongerEdgeResize_Name(t *testing.T) {
 func TestLongerEdgeResize_CreateOptions_Landscape(t *testing.T) {
 	resize := longerEdgeResize{size: 800}
 	image := imagefiltertest.LandscapeImage()
-	options, _ := resize.CreateOptions(image)
+	options, _ := resize.CreateOptions(buildParameters(nil, image))
 
 	assert.Equal(t, 800, options.Width)
 	assert.Equal(t, 0, options.Height)
@@ -30,7 +30,7 @@ func TestLongerEdgeResize_CreateOptions_Landscape(t *testing.T) {
 func TestLongerEdgeResize_CreateOptions_Portrait(t *testing.T) {
 	resize := longerEdgeResize{size: 800}
 	image := imagefiltertest.PortraitImage()
-	options, _ := resize.CreateOptions(image)
+	options, _ := resize.CreateOptions(buildParameters(nil, image))
 
 	assert.Equal(t, 0, options.Width)
 	assert.Equal(t, 800, options.Height)

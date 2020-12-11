@@ -2,8 +2,8 @@ package filters
 
 import (
 	"github.com/stretchr/testify/assert"
-	"github.com/zalando-incubator/skrop/filters/imagefiltertest"
-	"gopkg.in/h2non/bimg.v1"
+	"github.com/zalando-stups/skrop/filters/imagefiltertest"
+	"github.com/h2non/bimg"
 	"testing"
 )
 
@@ -45,7 +45,7 @@ func TestAddBackground_Merge(t *testing.T) {
 func TestAddBackground_CreateOptionsPNG(t *testing.T) {
 	image := imagefiltertest.PNGImage()
 	addBackground := addBackground{R: 1, G: 2, B: 3}
-	options, _ := addBackground.CreateOptions(image)
+	options, _ := addBackground.CreateOptions(buildParameters(nil, image))
 
 	background := options.Background
 
@@ -57,7 +57,7 @@ func TestAddBackground_CreateOptionsPNG(t *testing.T) {
 func TestAddBackground_CreateOptionsJPG(t *testing.T) {
 	image := imagefiltertest.LandscapeImage()
 	addBackground := addBackground{R: 1, G: 2, B: 3}
-	options, _ := addBackground.CreateOptions(image)
+	options, _ := addBackground.CreateOptions(buildParameters(nil, image))
 
 	background := options.Background
 

@@ -2,8 +2,8 @@ package filters
 
 import (
 	"github.com/stretchr/testify/assert"
-	"github.com/zalando-incubator/skrop/filters/imagefiltertest"
-	"gopkg.in/h2non/bimg.v1"
+	"github.com/zalando-stups/skrop/filters/imagefiltertest"
+	"github.com/h2non/bimg"
 	"testing"
 )
 
@@ -20,7 +20,7 @@ func TestSharpen_Name(t *testing.T) {
 func TestSharpen_CreateOptions(t *testing.T) {
 	image := imagefiltertest.LandscapeImage()
 	sharpen := sharpen{Radius: 1, X1: 2, Y2: 3, Y3: 4, M1: 5, M2: 6}
-	options, _ := sharpen.CreateOptions(image)
+	options, _ := sharpen.CreateOptions(buildParameters(nil, image))
 
 	sha := options.Sharpen
 

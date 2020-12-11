@@ -2,8 +2,8 @@ package filters
 
 import (
 	"github.com/stretchr/testify/assert"
-	"github.com/zalando-incubator/skrop/filters/imagefiltertest"
-	"gopkg.in/h2non/bimg.v1"
+	"github.com/zalando-stups/skrop/filters/imagefiltertest"
+	"github.com/h2non/bimg"
 	"testing"
 )
 
@@ -33,7 +33,7 @@ func TestOverlay_CreateOptions_SE(t *testing.T) {
 		bottomMargin:      40,
 	}
 
-	options, _ := overlay.CreateOptions(image)
+	options, _ := overlay.CreateOptions(buildParameters(nil, image))
 	over := options.WatermarkImage
 
 	assert.Equal(t, overArr, over.Buf)
@@ -55,7 +55,7 @@ func TestOverlay_CreateOptions_NW(t *testing.T) {
 		bottomMargin:      40,
 	}
 
-	options, _ := overlay.CreateOptions(image)
+	options, _ := overlay.CreateOptions(buildParameters(nil, image))
 	over := options.WatermarkImage
 
 	assert.Equal(t, overArr, over.Buf)
@@ -80,7 +80,7 @@ func TestOverlay_CreateOptions_CC(t *testing.T) {
 		bottomMargin:      0,
 	}
 
-	options, _ := overlay.CreateOptions(image)
+	options, _ := overlay.CreateOptions(buildParameters(nil, image))
 	over := options.WatermarkImage
 
 	assert.Equal(t, overArr, over.Buf)

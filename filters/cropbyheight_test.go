@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/zalando-incubator/skrop/filters/imagefiltertest"
-	"gopkg.in/h2non/bimg.v1"
+	"github.com/zalando-stups/skrop/filters/imagefiltertest"
+	"github.com/h2non/bimg"
 )
 
 func TestNewCropByHeight(t *testing.T) {
@@ -21,7 +21,7 @@ func TestCropByHeight_Name(t *testing.T) {
 func TestCropByHeight_CreateOptions(t *testing.T) {
 	c := cropByHeight{height: 400, cropType: North}
 	image := imagefiltertest.LandscapeImage()
-	options, _ := c.CreateOptions(image)
+	options, _ := c.CreateOptions(buildParameters(nil, image))
 
 	assert.Equal(t, 1000, options.Width)
 	assert.Equal(t, 400, options.Height)

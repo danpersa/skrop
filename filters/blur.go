@@ -2,11 +2,12 @@ package filters
 
 import (
 	log "github.com/sirupsen/logrus"
-	"github.com/zalando-incubator/skrop/parse"
+	"github.com/zalando-stups/skrop/parse"
 	"github.com/zalando/skipper/filters"
-	"gopkg.in/h2non/bimg.v1"
+	"github.com/h2non/bimg"
 )
 
+// BlurName is the name of the filter
 const BlurName = "blur"
 
 type blur struct {
@@ -14,6 +15,7 @@ type blur struct {
 	MinAmpl float64
 }
 
+// NewBlur creates a new filter of this type
 func NewBlur() filters.Spec {
 	return &blur{}
 }
@@ -22,7 +24,7 @@ func (r *blur) Name() string {
 	return BlurName
 }
 
-func (r *blur) CreateOptions(image *bimg.Image) (*bimg.Options, error) {
+func (r *blur) CreateOptions(_ *ImageFilterContext) (*bimg.Options, error) {
 	log.Debug("Create options for blurring ", r)
 
 	blur := bimg.GaussianBlur{Sigma: r.Sigma, MinAmpl: r.MinAmpl}

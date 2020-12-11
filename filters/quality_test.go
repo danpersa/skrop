@@ -2,8 +2,8 @@ package filters
 
 import (
 	"github.com/stretchr/testify/assert"
-	"github.com/zalando-incubator/skrop/filters/imagefiltertest"
-	"gopkg.in/h2non/bimg.v1"
+	"github.com/zalando-stups/skrop/filters/imagefiltertest"
+	"github.com/h2non/bimg"
 	"testing"
 )
 
@@ -20,7 +20,7 @@ func TestNewQuality_Name(t *testing.T) {
 func TestNewQuality_CreateOptions(t *testing.T) {
 	quality := quality{percentage: 75}
 	image := imagefiltertest.LandscapeImage()
-	options, _ := quality.CreateOptions(image)
+	options, _ := quality.CreateOptions(buildParameters(nil, image))
 
 	assert.Equal(t, 75, options.Quality)
 }

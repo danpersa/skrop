@@ -4,30 +4,40 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/h2non/bimg"
 	log "github.com/sirupsen/logrus"
-	"github.com/zalando-incubator/skrop/messages"
+	"github.com/zalando-stups/skrop/messages"
 	"github.com/zalando/skipper/filters"
-	"gopkg.in/h2non/bimg.v1"
 	"io/ioutil"
 	"net/http"
+	"os"
+	"strings"
 )
 
 const (
-	North        = "north"
-	South        = "south"
-	East         = "east"
-	West         = "west"
-	Center       = "center"
-	Quality      = 100
-	doNotEnlarge = "DO_NOT_ENLARGE"
-	SkropImage   = "skImage"
-	SkropOptions = "skOptions"
-	SkropInit    = "skInit"
+	// North Gravity
+	North = "north"
+	// South Gravity
+	South = "south"
+	// East Gravity
+	East = "east"
+	// West Gravity
+	West = "west"
+	// Center Gravity
+	Center = "center"
+	// Quality used by default if not specified
+	Quality          = 100
+	doNotEnlarge     = "DO_NOT_ENLARGE"
+	skropImage       = "skImage"
+	hasMergedFilters = "hasMergedFilters"
+	skropOptions     = "skOptions"
+	skropInit        = "skInit"
 )
 
 var (
 	cropTypeToGravity map[string]bimg.Gravity
 	cropTypes         map[string]bool
+	stripMetadata     bool
 )
 
 func init() {
@@ -43,13 +53,27 @@ func init() {
 		East:   bimg.GravityEast,
 		West:   bimg.GravityWest,
 		Center: bimg.GravityCentre}
+
+	val, exists := os.LookupEnv("STRIP_METADATA")
+	if exists && strings.ToUpper(val) == "TRUE" {
+		stripMetadata = true
+	}
 }
 
+// ImageFilter defines what a filter should implement
 type ImageFilter interface {
-	CreateOptions(image *bimg.Image) (*bimg.Options, error)
+	CreateOptions(imageContext *ImageFilterContext) (*bimg.Options, error)
 	CanBeMerged(other *bimg.Options, self *bimg.Options) bool
 	Merge(other *bimg.Options, self *bimg.Options) *bimg.Options
 }
+
+type ImageFilterContext struct {
+	Image         *bimg.Image
+	Parameters    map[string][]string
+	filterContext *filters.FilterContext
+}
+
+func (c *ImageFilterContext) PathParam(key string) string { return (*c.filterContext).PathParam(key) }
 
 func errorResponse() *http.Response {
 	return &http.Response{
@@ -58,83 +82,110 @@ func errorResponse() *http.Response {
 	}
 }
 
+func buildParameters(ctx filters.FilterContext, image *bimg.Image) *ImageFilterContext {
+	parameters := map[string][]string(nil)
+	if ctx != nil {
+		parameters = ctx.Request().URL.Query()
+	}
+
+	return &ImageFilterContext{
+		Image:         image,
+		Parameters:    parameters,
+		filterContext: &ctx,
+	}
+}
+
+// HandleImageResponse should be called by the Response of every filter. It transforms the image
 func HandleImageResponse(ctx filters.FilterContext, f ImageFilter) error {
+
+	log.Debug("Handle Image Response")
 
 	//in case the response had an error from the backend or from a previous filter
 	if ctx.Response().StatusCode > 300 {
-		return errors.New(fmt.Sprintf("processing skipped, as the backend/filter reported %d status code", ctx.Response().StatusCode))
+		return fmt.Errorf("processing skipped, as the backend/filter reported %d status code", ctx.Response().StatusCode)
 	}
 
 	//executed while processing the first filter
-	if _, ok := ctx.StateBag()[SkropInit]; !ok {
+	if _, ok := ctx.StateBag()[skropInit]; !ok {
 		initResponse(ctx)
-		ctx.StateBag()[SkropInit] = true
+		ctx.StateBag()[skropInit] = true
+		ctx.StateBag()[hasMergedFilters] = false
 	}
 
-	image, ok := ctx.StateBag()[SkropImage].(*bimg.Image)
+	image, ok := ctx.StateBag()[skropImage].(*bimg.Image)
 	if !ok {
 		//call the init func
-		log.Error("context state bag does not contains the key ", SkropImage)
+		log.Error("context state bag does not contains the key ", skropImage)
 		ctx.Serve(errorResponse())
 		return errors.New("processing failed, image not exists in the state bag")
 	}
 
-	opt, err := f.CreateOptions(image)
+	optionsFromRequest, err := f.CreateOptions(buildParameters(ctx, image))
 	if err != nil {
 		log.Error("Failed to create options ", err.Error())
 		ctx.Serve(errorResponse())
 		return err
 	}
 
-	opts, ok := ctx.StateBag()[SkropOptions].(*bimg.Options)
+	optionsFromStateBag, ok := ctx.StateBag()[skropOptions].(*bimg.Options)
 	if !ok {
-		log.Error("context state bag does not contains the key ", SkropImage)
+		log.Error("context state bag does not contains the key ", skropImage)
 		ctx.Serve(errorResponse())
-		return errors.New("processing failed, initialization of options not successful.")
+		return errors.New("processing failed, initialization of options not successful")
 	}
 
-	if f.CanBeMerged(opts, opt) {
-		ctx.StateBag()[SkropOptions] = f.Merge(opts, opt)
-		log.Debug("Filter ", f, " merged in ", ctx.StateBag()[SkropOptions])
+	if f.CanBeMerged(optionsFromStateBag, optionsFromRequest) {
+		ctx.StateBag()[skropOptions] = f.Merge(optionsFromStateBag, optionsFromRequest)
+		ctx.StateBag()[hasMergedFilters] = true
+		log.Debug("Filter ", f, " merged in ", ctx.StateBag()[skropOptions])
 		return nil
 	}
 
-	//transform the image
-	buf, err := transformImage(image, opts)
+	log.Debugf("Transform the image based on the options from request: %+v", optionsFromRequest)
+	buf, err := transformImage(image, optionsFromRequest)
 	if err != nil {
 		log.Error("Failed to process image ", err.Error())
 		ctx.Serve(errorResponse())
 		return err
 	}
 
-	// set opt in the stateBag
 	newImage := bimg.NewImage(buf)
-	newOption, err := f.CreateOptions(newImage)
 	if err != nil {
 		log.Error("Failed to create new options ", err.Error())
 		ctx.Serve(errorResponse())
 		return err
 	}
 
-	ctx.StateBag()[SkropImage] = newImage
-	ctx.StateBag()[SkropOptions] = newOption
+	ctx.StateBag()[skropImage] = newImage
+	ctx.StateBag()[skropOptions] = &bimg.Options{}
 	return nil
 }
 
+// FinalizeResponse is called at the end of the transformations on an image to empty the queue of
+// operations to perform
 func FinalizeResponse(ctx filters.FilterContext) {
-	//in case the response had an error fromt he backend or from a previous filter
+	log.Debug("Finalize Response")
+	//in case the response had an error from he backend or from a previous filter
 	if ctx.Response().StatusCode > 300 {
 		return
 	}
 
-	if _, ok := ctx.StateBag()[SkropInit]; !ok {
+	if _, ok := ctx.StateBag()[skropInit]; !ok {
 		return
 	}
 
-	image := ctx.StateBag()[SkropImage].(*bimg.Image)
-	opts := ctx.StateBag()[SkropOptions].(*bimg.Options)
+	image := ctx.StateBag()[skropImage].(*bimg.Image)
+	opts := ctx.StateBag()[skropOptions].(*bimg.Options)
 
-	buf, err := transformImage(image, opts)
+	buf := image.Image()
+
+	var err error
+
+	if ctx.StateBag()[hasMergedFilters] == true {
+		buf, err = transformImage(image, opts)
+		ctx.StateBag()[hasMergedFilters] = false
+	}
+
 	if err != nil {
 		log.Error("failed to process image ", err.Error())
 		ctx.Serve(&http.Response{
@@ -154,7 +205,7 @@ func FinalizeResponse(ctx filters.FilterContext) {
 func transformImage(image *bimg.Image, opts *bimg.Options) ([]byte, error) {
 	defOpt := applyDefaults(opts)
 
-	log.Debug("successfully applied the following options on the image: ", opts)
+	log.Debugf("successfully applied the following options on the image: %+v\n", opts)
 
 	transformedImageBytes, err := image.Process(*defOpt)
 
@@ -166,6 +217,9 @@ func transformImage(image *bimg.Image, opts *bimg.Options) ([]byte, error) {
 }
 
 func applyDefaults(o *bimg.Options) *bimg.Options {
+	if (stripMetadata) {
+		o.StripMetadata = true
+	}
 	if o.Quality == 0 {
 		o.Quality = Quality
 	}
@@ -205,6 +259,6 @@ func initResponse(ctx filters.FilterContext) {
 		return
 	}
 
-	ctx.StateBag()[SkropImage] = bimg.NewImage(buf)
-	ctx.StateBag()[SkropOptions] = &bimg.Options{}
+	ctx.StateBag()[skropImage] = bimg.NewImage(buf)
+	ctx.StateBag()[skropOptions] = &bimg.Options{}
 }

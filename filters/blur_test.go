@@ -2,8 +2,8 @@ package filters
 
 import (
 	"github.com/stretchr/testify/assert"
-	"github.com/zalando-incubator/skrop/filters/imagefiltertest"
-	"gopkg.in/h2non/bimg.v1"
+	"github.com/zalando-stups/skrop/filters/imagefiltertest"
+	"github.com/h2non/bimg"
 	"testing"
 )
 
@@ -20,7 +20,7 @@ func TestBlur_Name(t *testing.T) {
 func TestBlur_CreateOptions_ExplicitParam(t *testing.T) {
 	image := imagefiltertest.LandscapeImage()
 	blur := blur{Sigma: 19, MinAmpl: 21}
-	options, _ := blur.CreateOptions(image)
+	options, _ := blur.CreateOptions(buildParameters(nil, image))
 
 	blu := options.GaussianBlur
 
@@ -31,7 +31,7 @@ func TestBlur_CreateOptions_ExplicitParam(t *testing.T) {
 func TestBlur_CreateOptions_ImplicitParam(t *testing.T) {
 	image := imagefiltertest.LandscapeImage()
 	blur := blur{Sigma: 19}
-	options, _ := blur.CreateOptions(image)
+	options, _ := blur.CreateOptions(buildParameters(nil, image))
 
 	blu := options.GaussianBlur
 
